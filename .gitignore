@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+models/*.pkl
+mlruns/
+mlflow.db
+drift_report.html
+.env
+.venv/
+venv/
+*.egg-info/
+.ipynb_checkpoints/
