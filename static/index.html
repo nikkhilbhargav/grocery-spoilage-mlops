@@ -1,0 +1,945 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Smart Grocery Spoilage Prediction</title>
+
+<style>
+
+:root {
+  --forest: #1F4D2C;
+  --moss: #5B8C5A;
+  --rust: #C1440E;
+  --cream: #F4F1E8;
+  --charcoal: #2B2B2B;
+  --muted: #6B7268;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+
+  font-family:
+    -apple-system,
+    Segoe UI,
+    Calibri,
+    Arial,
+    sans-serif;
+
+  background: var(--cream);
+
+  color: var(--charcoal);
+
+  padding: 40px 16px;
+}
+
+.wrap {
+  max-width: 620px;
+
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 26px;
+
+  color: var(--forest);
+
+  margin-bottom: 4px;
+}
+
+p.subtitle {
+  color: var(--muted);
+
+  margin-top: 0;
+
+  margin-bottom: 28px;
+}
+
+.card {
+  background: white;
+
+  border: 1px solid #E0DCCC;
+
+  border-radius: 12px;
+
+  padding: 24px;
+}
+
+label {
+  display: block;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  margin-bottom: 4px;
+
+  margin-top: 16px;
+
+  color: var(--charcoal);
+}
+
+label:first-of-type {
+  margin-top: 0;
+}
+
+input,
+select {
+
+  width: 100%;
+
+  padding: 10px 12px;
+
+  border: 1px solid #D8D3C4;
+
+  border-radius: 8px;
+
+  font-size: 14px;
+
+  background: var(--cream);
+}
+
+input:focus,
+select:focus {
+
+  outline: none;
+
+  border-color: var(--moss);
+}
+
+button {
+
+  width: 100%;
+
+  margin-top: 24px;
+
+  padding: 13px;
+
+  background: var(--forest);
+
+  color: white;
+
+  border: none;
+
+  border-radius: 8px;
+
+  font-size: 15px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+button:hover {
+  background: #16391F;
+}
+
+button:disabled {
+  background: #9AAE9C;
+
+  cursor: default;
+}
+
+#result {
+
+  margin-top: 24px;
+
+  display: none;
+}
+
+.badge {
+
+  display: inline-block;
+
+  padding: 6px 14px;
+
+  border-radius: 20px;
+
+  font-weight: 700;
+
+  font-size: 14px;
+
+  margin-bottom: 12px;
+}
+
+.badge.low {
+
+  background: #DDEBDC;
+
+  color: var(--moss);
+}
+
+.badge.high {
+
+  background: #FBE4D8;
+
+  color: var(--rust);
+}
+
+.result-card {
+
+  background: white;
+
+  border: 1px solid #E0DCCC;
+
+  border-radius: 12px;
+
+  padding: 20px 24px;
+
+  margin-top: 16px;
+}
+
+.row {
+
+  display: flex;
+
+  justify-content: space-between;
+
+  padding: 6px 0;
+
+  font-size: 14px;
+
+  border-bottom: 1px solid #F0EDE2;
+
+  gap: 20px;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row span:first-child {
+  color: var(--muted);
+}
+
+.row span:last-child {
+  font-weight: 600;
+
+  text-align: right;
+}
+
+ul.causes {
+
+  margin: 8px 0 0 0;
+
+  padding-left: 20px;
+
+  font-size: 14px;
+}
+
+ul.causes li {
+  margin-bottom: 4px;
+}
+
+.counterfactual {
+
+  margin-top: 14px;
+
+  padding: 12px 14px;
+
+  background: #F4F1E8;
+
+  border-left: 3px solid var(--moss);
+
+  border-radius: 4px;
+
+  font-size: 14px;
+
+  font-style: italic;
+}
+
+/* Router mismatch explanation */
+
+.note {
+
+  display: none;
+
+  margin-top: 10px;
+
+  padding: 10px 14px;
+
+  background: #FFF6E5;
+
+  border-left: 3px solid #D9A441;
+
+  border-radius: 4px;
+
+  font-size: 13px;
+
+  color: #6B5A1E;
+}
+
+#error {
+
+  display: none;
+
+  margin-top: 16px;
+
+  padding: 12px 14px;
+
+  background: #FBE4D8;
+
+  color: var(--rust);
+
+  border-radius: 8px;
+
+  font-size: 14px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <h1>
+    Smart Grocery Spoilage Prediction
+  </h1>
+
+  <p class="subtitle">
+    Enter delivery conditions to check spoilage risk.
+  </p>
+
+
+  <div class="card">
+
+    <!-- Product -->
+
+    <label for="product_type">
+      Product
+    </label>
+
+    <select id="product_type">
+
+      <optgroup label="Hardy">
+
+        <option value="potato">
+          Potato
+        </option>
+
+        <option value="onion">
+          Onion
+        </option>
+
+        <option value="apple">
+          Apple
+        </option>
+
+      </optgroup>
+
+
+      <optgroup label="Normal">
+
+        <option value="tomato">
+          Tomato
+        </option>
+
+        <option value="carrot">
+          Carrot
+        </option>
+
+        <option value="banana">
+          Banana
+        </option>
+
+      </optgroup>
+
+
+      <optgroup label="Fragile">
+
+        <option value="milk"
+                selected>
+          Milk
+        </option>
+
+        <option value="berries">
+          Berries
+        </option>
+
+        <option value="leafy_vegetables">
+          Leafy Vegetables
+        </option>
+
+      </optgroup>
+
+    </select>
+
+
+    <!-- Temperature -->
+
+    <label for="temperature">
+      Temperature (°C)
+    </label>
+
+    <input
+      type="number"
+      id="temperature"
+      value="30"
+      step="0.1"
+    >
+
+
+    <!-- Humidity -->
+
+    <label for="humidity">
+      Humidity (%)
+    </label>
+
+    <input
+      type="number"
+      id="humidity"
+      value="80"
+      step="0.1"
+    >
+
+
+    <!-- Distance -->
+
+    <label for="distance_km">
+      Delivery distance (km)
+    </label>
+
+    <input
+      type="number"
+      id="distance_km"
+      value="100"
+      step="0.1"
+    >
+
+
+    <!-- Shelf life -->
+
+    <label for="initial_shelf_life">
+      Initial shelf life (days)
+    </label>
+
+    <input
+      type="number"
+      id="initial_shelf_life"
+      value="5"
+    >
+
+
+    <!-- Packaging -->
+
+    <label for="packaging_quality">
+      Packaging quality
+    </label>
+
+    <select id="packaging_quality">
+
+      <option value="1">
+        Poor
+      </option>
+
+      <option value="2"
+              selected>
+        Medium
+      </option>
+
+      <option value="3">
+        Good
+      </option>
+
+    </select>
+
+
+    <button
+      id="submitBtn"
+      onclick="predict()">
+
+      Predict Spoilage Risk
+
+    </button>
+
+  </div>
+
+
+  <!-- Error -->
+
+  <div id="error"></div>
+
+
+  <!-- Result -->
+
+  <div id="result">
+
+    <div
+      class="badge"
+      id="riskBadge">
+    </div>
+
+
+    <!-- Router mismatch note -->
+
+    <div
+      id="routerNote"
+      class="note">
+    </div>
+
+
+    <!-- Main result -->
+
+    <div class="result-card">
+
+      <div class="row">
+
+        <span>
+          Selected product
+        </span>
+
+        <span id="selectedProduct">
+        </span>
+
+      </div>
+
+
+      <div class="row">
+
+        <span>
+          Router's guess
+        </span>
+
+        <span id="routerModel">
+        </span>
+
+      </div>
+
+
+      <div class="row">
+
+        <span>
+          Current temperature
+        </span>
+
+        <span id="currentTemp">
+        </span>
+
+      </div>
+
+
+      <div class="row">
+
+        <span>
+          Probability of High risk
+        </span>
+
+        <span id="probability">
+        </span>
+
+      </div>
+
+    </div>
+
+
+    <!-- Causes -->
+
+    <div class="result-card">
+
+      <strong>
+        Why it's risky
+      </strong>
+
+      <ul
+        class="causes"
+        id="causesList">
+      </ul>
+
+    </div>
+
+
+    <!-- Counterfactual -->
+
+    <div
+      class="counterfactual"
+      id="counterfactualText">
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+/*
+ * API endpoint
+ *
+ * window.location.origin makes the frontend work
+ * both on localhost and when accessed from another
+ * device on the same Wi-Fi network.
+ */
+
+const API_URL =
+  window.location.origin + "/predict";
+
+
+async function predict() {
+
+  const btn =
+    document.getElementById("submitBtn");
+
+  const errorBox =
+    document.getElementById("error");
+
+  const resultBox =
+    document.getElementById("result");
+
+
+  /*
+   * Reset previous state
+   */
+
+  errorBox.style.display = "none";
+
+  resultBox.style.display = "none";
+
+
+  btn.disabled = true;
+
+  btn.textContent = "Predicting...";
+
+
+  /*
+   * Read input values
+   */
+
+  const payload = {
+
+    temperature:
+      parseFloat(
+        document.getElementById(
+          "temperature"
+        ).value
+      ),
+
+    humidity:
+      parseFloat(
+        document.getElementById(
+          "humidity"
+        ).value
+      ),
+
+    distance_km:
+      parseFloat(
+        document.getElementById(
+          "distance_km"
+        ).value
+      ),
+
+    product_type:
+      document.getElementById(
+        "product_type"
+      ).value,
+
+    initial_shelf_life:
+      parseInt(
+        document.getElementById(
+          "initial_shelf_life"
+        ).value
+      ),
+
+    packaging_quality:
+      parseInt(
+        document.getElementById(
+          "packaging_quality"
+        ).value
+      ),
+
+  };
+
+
+  try {
+
+    /*
+     * Send prediction request
+     */
+
+    const res =
+      await fetch(
+        API_URL,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(payload),
+        }
+      );
+
+
+    /*
+     * Handle server errors
+     */
+
+    if (!res.ok) {
+
+      const errData =
+        await res
+          .json()
+          .catch(
+            () => null
+          );
+
+      throw new Error(
+        errData
+          ? JSON.stringify(
+              errData.detail
+            )
+          : "Request failed (" +
+            res.status +
+            ")"
+      );
+
+    }
+
+
+    /*
+     * Read API result
+     */
+
+    const data =
+      await res.json();
+
+
+    renderResult(data);
+
+
+  } catch (err) {
+
+    /*
+     * Show error to user
+     */
+
+    errorBox.textContent =
+      "Error: " +
+      err.message;
+
+    errorBox.style.display =
+      "block";
+
+
+  } finally {
+
+    /*
+     * Enable button again
+     */
+
+    btn.disabled = false;
+
+    btn.textContent =
+      "Predict Spoilage Risk";
+
+  }
+
+}
+
+
+function renderResult(data) {
+
+  /*
+   * Risk badge
+   */
+
+  const isHigh =
+    data.prediction.includes(
+      "High"
+    );
+
+
+  const badge =
+    document.getElementById(
+      "riskBadge"
+    );
+
+
+  badge.textContent =
+    data.prediction;
+
+
+  badge.className =
+    "badge " +
+    (
+      isHigh
+        ? "high"
+        : "low"
+    );
+
+
+  /*
+   * Selected product
+   */
+
+  const productSelect =
+    document.getElementById(
+      "product_type"
+    );
+
+
+  const productLabel =
+    productSelect
+      .options[
+        productSelect.selectedIndex
+      ]
+      .text;
+
+
+  document.getElementById(
+    "selectedProduct"
+  ).textContent =
+    productLabel;
+
+
+  /*
+   * Router prediction
+   */
+
+  document.getElementById(
+    "routerModel"
+  ).textContent =
+    data.router_model;
+
+
+  /*
+   * Temperature
+   */
+
+  document.getElementById(
+    "currentTemp"
+  ).textContent =
+    data.current_temperature +
+    "°C";
+
+
+  /*
+   * Probability
+   */
+
+  document.getElementById(
+    "probability"
+  ).textContent =
+    Math.round(
+      data.probability * 100
+    ) +
+    "%";
+
+
+  /*
+   * Router mismatch note
+   *
+   * The note is displayed ONLY when
+   * the product's usual category differs
+   * from the router's prediction.
+   */
+
+  const noteBox =
+    document.getElementById(
+      "routerNote"
+    );
+
+
+  if (data.router_note) {
+
+    noteBox.textContent =
+      data.router_note;
+
+    noteBox.style.display =
+      "block";
+
+  } else {
+
+    noteBox.style.display =
+      "none";
+
+  }
+
+
+  /*
+   * Risk causes
+   */
+
+  const causesList =
+    document.getElementById(
+      "causesList"
+    );
+
+
+  causesList.innerHTML =
+    "";
+
+
+  if (
+    data.causes &&
+    data.causes.length > 0
+  ) {
+
+    data.causes.forEach(
+      c => {
+
+        const li =
+          document.createElement(
+            "li"
+          );
+
+        li.textContent =
+          c;
+
+        causesList.appendChild(
+          li
+        );
+
+      }
+    );
+
+  } else {
+
+    causesList.innerHTML =
+      "<li>" +
+      "No specific risk factors flagged." +
+      "</li>";
+
+  }
+
+
+  /*
+   * Counterfactual explanation
+   */
+
+  document.getElementById(
+    "counterfactualText"
+  ).textContent =
+    data.counterfactual;
+
+
+  /*
+   * Show result
+   */
+
+  document.getElementById(
+    "result"
+  ).style.display =
+    "block";
+
+}
+
+</script>
+
+</body>
+
+</html>
+```
